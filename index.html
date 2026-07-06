@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Make Your Day</title>
+<style>
+:root{--bg:#f7f2e8;--card:#fffdf7;--ink:#24313a;--muted:#6d7478;--accent:#f2a541;--green:#57a773;--border:#e1d7c6;--soft:#fff3d6}
+*{box-sizing:border-box}body{margin:0;padding:18px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+main{max-width:980px;margin:0 auto}header{text-align:center;margin-bottom:16px}h1{margin:8px 0 4px;font-size:2.15rem;letter-spacing:-.04em}h2{margin:0 0 8px}
+.tagline,.muted{color:var(--muted)}.date-row{display:flex;justify-content:center;gap:10px;align-items:center;flex-wrap:wrap;font-weight:900}
+input,textarea{font:inherit;border:1px solid var(--border);border-radius:14px;background:white;color:var(--ink)}input[type=date],input[type=url]{padding:11px 14px}
+.panel,.goal,.reflection,.setup{background:var(--card);border:1px solid var(--border);border-radius:22px;padding:18px;box-shadow:0 3px 10px rgba(0,0,0,.04)}
+.panel,.setup{margin:16px 0}.progress-label{display:flex;justify-content:space-between;font-weight:950;font-size:1.12rem;margin-bottom:10px}
+.bar{height:18px;border-radius:999px;background:#eadfce;overflow:hidden;margin-bottom:10px}#fill{height:100%;width:0%;background:var(--green);transition:width .2s ease}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(305px,1fr));gap:14px}.goal.done{outline:3px solid rgba(87,167,115,.22)}
+.title{display:flex;align-items:center;gap:10px;font-size:1.24rem;font-weight:950;margin-bottom:7px}.emoji{width:40px;height:40px;display:grid;place-items:center;background:var(--soft);border-radius:13px;font-size:1.35rem}.goal.done .emoji{background:#dbf3e4}
+.prompt{color:var(--muted);margin:8px 0 12px;line-height:1.35}.field-label{display:block;font-weight:850;font-size:.9rem;margin:10px 0 5px}
+textarea{width:100%;min-height:74px;padding:12px;resize:vertical}.row{display:grid;grid-template-columns:1fr 105px;gap:8px;align-items:end}.minutes{width:100%;padding:12px;text-align:center}
+.check{display:inline-flex;align-items:center;gap:8px;font-weight:900;margin-top:13px;cursor:pointer;user-select:none}input[type=checkbox]{width:24px;height:24px;accent-color:var(--green)}
+.reflection{margin-top:16px}.buttons{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:16px 0}
+button{border:0;border-radius:999px;padding:13px 18px;background:var(--accent);color:#25170a;font-weight:950;font-size:1rem;cursor:pointer}
+button.secondary{background:white;color:var(--ink);border:1px solid var(--border)}button.green{background:var(--green);color:white}.setup input{width:100%;margin-top:6px}.setup details{margin-top:10px}
+.status{text-align:center;font-weight:850;min-height:24px;color:var(--muted)}.quote{text-align:center;color:var(--muted);font-style:italic;margin-top:18px}code{background:#f1e6d3;padding:2px 5px;border-radius:6px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Make Your Day</h1><p class="tagline">Move. Think. Learn. Make. Share. Care. Play.</p><div class="date-row"><label for="date">Today:</label><input id="date" type="date"></div></header>
+
+<section class="setup">
+<h2>Google Sheet Sync</h2>
+<p class="muted">Paste your Google Apps Script Web App URL here when it is ready. Until then, this app saves on this device.</p>
+<label class="field-label" for="scriptUrl">Apps Script Web App URL</label>
+<input id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+<div class="buttons"><button class="secondary" id="saveUrlBtn">Save Sheet Link</button><button class="secondary" id="testSheetBtn">Test Sheet Connection</button></div>
+<details><summary><strong>Google Sheet columns to create</strong></summary><p class="muted">Use this header row:</p><p><code>Timestamp | Date | Area | Morning Plan | Completed Action | Minutes | Complete | Reflection</code></p></details>
+</section>
+
+<section class="panel"><div class="progress-label"><span>Daily rhythm</span><span id="score">0 / 7</span></div><div class="bar"><div id="fill"></div></div><p id="timeTotal" class="muted">Total completed time: 0 minutes</p></section>
+
+<section class="grid" id="goals"></section>
+
+<section class="reflection"><h2>Reflection</h2><p class="prompt">What made today successful? What should tomorrow-you remember?</p><textarea id="reflection" placeholder="A win, lesson, person helped, project advanced, something shared, or moment of play..."></textarea></section>
+
+<div class="buttons">
+<button id="savePlanBtn">Save Morning Plan</button>
+<button class="green" id="saveProgressBtn">Save Progress to Sheet</button>
+<button class="secondary" id="copyChatBtn">Copy for ChatGPT</button>
+<button class="secondary" id="copySummaryBtn">Copy Full Summary</button>
+<button class="secondary" id="clearBtn">Clear This Day</button>
+</div>
+<p class="status" id="status"></p>
+<p class="quote">“Go ahead. Make your day.”</p>
+</main>
+
+<script>
+(function(){
+const goalData=[
+{key:"move",label:"Move",emoji:"💪",prompt:"What will make your body stronger today?",placeholder:"Example: 30-minute walk, lift, stretch, golf practice..."},
+{key:"think",label:"Think",emoji:"🧠",prompt:"What thinking will start or shape the day?",placeholder:"Example: journal, plan the day, capture book ideas..."},
+{key:"learn",label:"Learn",emoji:"📚",prompt:"What will you learn today?",placeholder:"Example: read, podcast, tutorial, research..."},
+{key:"make",label:"Make",emoji:"🔨",prompt:"What will you make or prepare to make?",placeholder:"Example: book section, prototype, lesson, repair, design..."},
+{key:"share",label:"Share",emoji:"📣",prompt:"What will you share, publish, teach, show, or explain today?",placeholder:"Example: post an idea, send a draft, teach someone, share progress..."},
+{key:"care",label:"Care",emoji:"❤️",prompt:"Who will you do something kind for today?",placeholder:"Example: call, help, encourage, thank, serve..."},
+{key:"play",label:"Play",emoji:"🎲",prompt:"How will you build play into the day?",placeholder:"Example: golf, family, game, fun project, movie..."}];
+
+const dateInput=document.getElementById("date"),goalsWrap=document.getElementById("goals"),score=document.getElementById("score"),fill=document.getElementById("fill"),timeTotal=document.getElementById("timeTotal"),reflection=document.getElementById("reflection"),scriptUrl=document.getElementById("scriptUrl"),status=document.getElementById("status");
+
+goalsWrap.innerHTML=goalData.map(g=>`<article class="goal" data-goal="${g.key}" data-label="${g.label}"><div class="title"><span class="emoji">${g.emoji}</span>${g.label}</div><p class="prompt">${g.prompt}</p><label class="field-label">Morning plan</label><textarea class="plan" placeholder="${g.placeholder}"></textarea><div class="row"><div><label class="field-label">What actually happened?</label><textarea class="actual" placeholder="Fill this in after you do it..."></textarea></div><div><label class="field-label">Minutes</label><input class="minutes" type="number" min="0" step="5" placeholder="0"></div></div><label class="check"><input class="done" type="checkbox"> Completed</label></article>`).join("");
+const goals=Array.from(document.querySelectorAll(".goal"));
+
+function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function dayKey(){return "make-your-day-v5-"+dateInput.value}
+function setStatus(msg){status.textContent=msg;setTimeout(()=>{if(status.textContent===msg)status.textContent=""},3500)}
+function collect(){const data={date:dateInput.value,reflection:reflection.value,goals:[]};goals.forEach(card=>data.goals.push({key:card.dataset.goal,area:card.dataset.label,plan:card.querySelector(".plan").value,actual:card.querySelector(".actual").value,minutes:card.querySelector(".minutes").value,complete:card.querySelector(".done").checked}));return data}
+function saveLocal(msg){localStorage.setItem(dayKey(),JSON.stringify(collect()));update();if(msg)setStatus(msg)}
+function load(){goals.forEach(card=>{card.querySelector(".plan").value="";card.querySelector(".actual").value="";card.querySelector(".minutes").value="";card.querySelector(".done").checked=false;card.classList.remove("done")});reflection.value="";const raw=localStorage.getItem(dayKey());if(raw){const data=JSON.parse(raw);reflection.value=data.reflection||"";goals.forEach(card=>{const g=(data.goals||[]).find(x=>x.key===card.dataset.goal)||{};card.querySelector(".plan").value=g.plan||"";card.querySelector(".actual").value=g.actual||"";card.querySelector(".minutes").value=g.minutes||"";card.querySelector(".done").checked=!!g.complete})}update()}
+function update(){let completed=0,minutes=0;goals.forEach(card=>{const done=card.querySelector(".done").checked;if(done)completed++;card.classList.toggle("done",done);if(done)minutes+=parseInt(card.querySelector(".minutes").value,10)||0});score.textContent=completed+" / "+goals.length;fill.style.width=Math.round((completed/goals.length)*100)+"%";timeTotal.textContent="Total completed time: "+minutes+" minute"+(minutes===1?"":"s")}
+async function sendToSheet(action){saveLocal();const url=localStorage.getItem("make-your-day-script-url")||"";if(!url){setStatus("Saved on this device. Add your Apps Script URL to save to Google Sheets.");return}const payload=collect();payload.action=action;try{await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});setStatus(action==="morning_plan"?"Morning plan sent to Google Sheets.":"Progress sent to Google Sheets.")}catch(e){setStatus("Could not reach Google Sheets. Your work is still saved on this device.")}}
+function fullSummary(){const data=collect();const lines=["Make Your Day — "+data.date,""];data.goals.forEach(g=>{const mark=g.complete?"✅":"⬜";const mins=g.minutes?" ("+g.minutes+" min)":"";lines.push(mark+" "+g.area+mins);lines.push("Plan: "+(g.plan||""));lines.push("Actual: "+(g.actual||""));lines.push("")});if(data.reflection)lines.push("Reflection:",data.reflection);return lines.join("\n")}
+function chatPrompt(){const data=collect();const lines=["Here is my Make Your Day plan for today. Please suggest a realistic order, priorities, and any small adjustments.","","Date: "+data.date,""];data.goals.forEach(g=>lines.push(g.area+": "+(g.plan||"")));lines.push("","Constraints or notes: ");return lines.join("\n")}
+async function copyText(text,msg){try{await navigator.clipboard.writeText(text);setStatus(msg)}catch(e){prompt("Copy this:",text)}}
+
+goals.forEach(card=>{card.querySelectorAll("textarea,input").forEach(input=>input.addEventListener("input",()=>saveLocal()));card.querySelector(".done").addEventListener("change",()=>saveLocal("Progress saved on this device."))});
+reflection.addEventListener("input",()=>saveLocal());dateInput.addEventListener("change",load);
+document.getElementById("saveUrlBtn").addEventListener("click",()=>{localStorage.setItem("make-your-day-script-url",scriptUrl.value.trim());setStatus("Google Sheet link saved.")});
+document.getElementById("testSheetBtn").addEventListener("click",()=>sendToSheet("test"));
+document.getElementById("savePlanBtn").addEventListener("click",()=>sendToSheet("morning_plan"));
+document.getElementById("saveProgressBtn").addEventListener("click",()=>sendToSheet("progress"));
+document.getElementById("copyChatBtn").addEventListener("click",()=>copyText(chatPrompt(),"ChatGPT prompt copied."));
+document.getElementById("copySummaryBtn").addEventListener("click",()=>copyText(fullSummary(),"Full summary copied."));
+document.getElementById("clearBtn").addEventListener("click",()=>{if(confirm("Clear this day from this device?")){localStorage.removeItem(dayKey());load();setStatus("This day was cleared on this device.")}});
+dateInput.value=todayISO();scriptUrl.value=localStorage.getItem("make-your-day-script-url")||"";load();
+})();
+</script>
+</body>
+</html>
