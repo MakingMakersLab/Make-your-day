@@ -28,14 +28,6 @@ button.secondary{background:white;color:var(--ink);border:1px solid var(--border
 <main>
 <header><h1>Make Your Day</h1><p class="tagline">Move. Think. Learn. Make. Share. Care. Play.</p><div class="date-row"><label for="date">Today:</label><input id="date" type="date"></div></header>
 
-<section class="setup">
-<h2>Google Sheet Sync</h2>
-<p class="muted">Paste your Google Apps Script Web App URL here when it is ready. Until then, this app saves on this device.</p>
-<label class="field-label" for="scriptUrl">Apps Script Web App URL</label>
-<input id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
-<div class="buttons"><button class="secondary" id="saveUrlBtn">Save Sheet Link</button><button class="secondary" id="testSheetBtn">Test Sheet Connection</button></div>
-<details><summary><strong>Google Sheet columns to create</strong></summary><p class="muted">Use this header row:</p><p><code>Timestamp | Date | Area | Morning Plan | Completed Action | Minutes | Complete | Reflection</code></p></details>
-</section>
 
 <section class="panel"><div class="progress-label"><span>Daily rhythm</span><span id="score">0 / 7</span></div><div class="bar"><div id="fill"></div></div><p id="timeTotal" class="muted">Total completed time: 0 minutes</p></section>
 
@@ -65,7 +57,8 @@ const goalData=[
 {key:"care",label:"Care",emoji:"❤️",prompt:"Who will you do something kind for today?",placeholder:"Example: call, help, encourage, thank, serve..."},
 {key:"play",label:"Play",emoji:"🎲",prompt:"How will you build play into the day?",placeholder:"Example: golf, family, game, fun project, movie..."}];
 
-const dateInput=document.getElementById("date"),goalsWrap=document.getElementById("goals"),score=document.getElementById("score"),fill=document.getElementById("fill"),timeTotal=document.getElementById("timeTotal"),reflection=document.getElementById("reflection"),scriptUrl=document.getElementById("scriptUrl"),status=document.getElementById("status");
+const SCRIPT_URL="https://script.google.com/macros/s/AKfycbySDD7KaRqEh9puY7bK7jYcMKIqk1LmNbxuDMeQ1clOPtrq9evw49ZxaUGeK5cx8G_2/exec";
+const dateInput=document.getElementById("date"),goalsWrap=document.getElementById("goals"),score=document.getElementById("score"),fill=document.getElementById("fill"),timeTotal=document.getElementById("timeTotal"),reflection=document.getElementById("reflection"),status=document.getElementById("status");
 
 goalsWrap.innerHTML=goalData.map(g=>`<article class="goal" data-goal="${g.key}" data-label="${g.label}"><div class="title"><span class="emoji">${g.emoji}</span>${g.label}</div><p class="prompt">${g.prompt}</p><label class="field-label">Morning plan</label><textarea class="plan" placeholder="${g.placeholder}"></textarea><div class="row"><div><label class="field-label">What actually happened?</label><textarea class="actual" placeholder="Fill this in after you do it..."></textarea></div><div><label class="field-label">Minutes</label><input class="minutes" type="number" min="0" step="5" placeholder="0"></div></div><label class="check"><input class="done" type="checkbox"> Completed</label></article>`).join("");
 const goals=Array.from(document.querySelectorAll(".goal"));
@@ -77,21 +70,19 @@ function collect(){const data={date:dateInput.value,reflection:reflection.value,
 function saveLocal(msg){localStorage.setItem(dayKey(),JSON.stringify(collect()));update();if(msg)setStatus(msg)}
 function load(){goals.forEach(card=>{card.querySelector(".plan").value="";card.querySelector(".actual").value="";card.querySelector(".minutes").value="";card.querySelector(".done").checked=false;card.classList.remove("done")});reflection.value="";const raw=localStorage.getItem(dayKey());if(raw){const data=JSON.parse(raw);reflection.value=data.reflection||"";goals.forEach(card=>{const g=(data.goals||[]).find(x=>x.key===card.dataset.goal)||{};card.querySelector(".plan").value=g.plan||"";card.querySelector(".actual").value=g.actual||"";card.querySelector(".minutes").value=g.minutes||"";card.querySelector(".done").checked=!!g.complete})}update()}
 function update(){let completed=0,minutes=0;goals.forEach(card=>{const done=card.querySelector(".done").checked;if(done)completed++;card.classList.toggle("done",done);if(done)minutes+=parseInt(card.querySelector(".minutes").value,10)||0});score.textContent=completed+" / "+goals.length;fill.style.width=Math.round((completed/goals.length)*100)+"%";timeTotal.textContent="Total completed time: "+minutes+" minute"+(minutes===1?"":"s")}
-async function sendToSheet(action){saveLocal();const url=localStorage.getItem("make-your-day-script-url")||"";if(!url){setStatus("Saved on this device. Add your Apps Script URL to save to Google Sheets.");return}const payload=collect();payload.action=action;try{await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});setStatus(action==="morning_plan"?"Morning plan sent to Google Sheets.":"Progress sent to Google Sheets.")}catch(e){setStatus("Could not reach Google Sheets. Your work is still saved on this device.")}}
+async function sendToSheet(action){saveLocal();const payload=collect();payload.action=action;try{await fetch(SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});setStatus(action==="morning_plan"?"Morning plan saved to Google Sheets.":"Progress saved to Google Sheets.")}catch(e){setStatus("Could not reach Google Sheets. Your work is still saved on this device.")}}
 function fullSummary(){const data=collect();const lines=["Make Your Day — "+data.date,""];data.goals.forEach(g=>{const mark=g.complete?"✅":"⬜";const mins=g.minutes?" ("+g.minutes+" min)":"";lines.push(mark+" "+g.area+mins);lines.push("Plan: "+(g.plan||""));lines.push("Actual: "+(g.actual||""));lines.push("")});if(data.reflection)lines.push("Reflection:",data.reflection);return lines.join("\n")}
 function chatPrompt(){const data=collect();const lines=["Here is my Make Your Day plan for today. Please suggest a realistic order, priorities, and any small adjustments.","","Date: "+data.date,""];data.goals.forEach(g=>lines.push(g.area+": "+(g.plan||"")));lines.push("","Constraints or notes: ");return lines.join("\n")}
 async function copyText(text,msg){try{await navigator.clipboard.writeText(text);setStatus(msg)}catch(e){prompt("Copy this:",text)}}
 
 goals.forEach(card=>{card.querySelectorAll("textarea,input").forEach(input=>input.addEventListener("input",()=>saveLocal()));card.querySelector(".done").addEventListener("change",()=>saveLocal("Progress saved on this device."))});
 reflection.addEventListener("input",()=>saveLocal());dateInput.addEventListener("change",load);
-document.getElementById("saveUrlBtn").addEventListener("click",()=>{localStorage.setItem("make-your-day-script-url",scriptUrl.value.trim());setStatus("Google Sheet link saved.")});
-document.getElementById("testSheetBtn").addEventListener("click",()=>sendToSheet("test"));
 document.getElementById("savePlanBtn").addEventListener("click",()=>sendToSheet("morning_plan"));
 document.getElementById("saveProgressBtn").addEventListener("click",()=>sendToSheet("progress"));
 document.getElementById("copyChatBtn").addEventListener("click",()=>copyText(chatPrompt(),"ChatGPT prompt copied."));
 document.getElementById("copySummaryBtn").addEventListener("click",()=>copyText(fullSummary(),"Full summary copied."));
 document.getElementById("clearBtn").addEventListener("click",()=>{if(confirm("Clear this day from this device?")){localStorage.removeItem(dayKey());load();setStatus("This day was cleared on this device.")}});
-dateInput.value=todayISO();scriptUrl.value=localStorage.getItem("make-your-day-script-url")||"";load();
+dateInput.value=todayISO();load();
 })();
 </script>
 </body>
